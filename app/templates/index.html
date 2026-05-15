@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VPS Downloader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0f11;
+      --surface: #161819;
+      --border: #252729;
+      --text: #e2e4e8;
+      --muted: #6b7280;
+      --accent: #3b82f6;
+      --accent-dim: rgba(59,130,246,.12);
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 80px;
+    }
+
+    header {
+      width: 100%;
+      max-width: 680px;
+      margin-bottom: 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      width: 32px; height: 32px;
+      border: 1.5px solid var(--accent);
+      border-radius: 6px;
+      display: grid; place-items: center;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--accent);
+    }
+
+    header h1 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+    header p  { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+    .badge {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid;
+    }
+    .badge.ok  { color: var(--green); border-color: rgba(34,197,94,.3); background: rgba(34,197,94,.06); }
+    .badge.err { color: var(--red);   border-color: rgba(239,68,68,.3);  background: rgba(239,68,68,.06); }
+
+    /* Cards */
+    .card {
+      width: 100%;
+      max-width: 680px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--muted);
+    }
+    .card-header .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--border);
+    }
+    .card-header .dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    .card-body { padding: 18px; }
+
+    /* Setup steps */
+    .steps { display: flex; flex-direction: column; gap: 14px; }
+
+    .step {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: border-color .2s;
+    }
+    .step.active  { border-color: var(--accent); background: var(--accent-dim); }
+    .step.done    { border-color: rgba(34,197,94,.25); background: rgba(34,197,94,.05); }
+
+    .step-num {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      display: grid; place-items: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .step.done   .step-num { border-color: var(--green); color: var(--green); }
+    .step.active .step-num { border-color: var(--accent); color: var(--accent); }
+
+    .step-content h3 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .step-content p  { font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .step-content a  { color: var(--accent); text-decoration: none; }
+    .step-content a:hover { text-decoration: underline; }
+
+    /* Form elements */
+    input[type=text], input[type=file] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 9px 12px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+      transition: border-color .15s;
+      margin-top: 8px;
+    }
+    input:focus { border-color: var(--accent); }
+
+    button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    button:hover    { opacity: .88; }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    button.ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .row { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; }
+    .row input { margin-top: 0; flex: 1; }
+    .row button { margin-top: 0; white-space: nowrap; }
+
+    /* Download form */
+    #download-section { display: none; }
+    #download-section.visible { display: block; }
+
+    .input-label {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .input-group { margin-bottom: 12px; }
+
+    /* Job list */
+    .job-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+
+    .job-item {
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: border-color .2s;
+    }
+    .job-item.status-downloading,
+    .job-item.status-uploading,
+    .job-item.status-processing { border-color: rgba(59,130,246,.3); }
+    .job-item.status-done        { border-color: rgba(34,197,94,.25); }
+    .job-item.status-error       { border-color: rgba(239,68,68,.25); }
+
+    .job-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+
+    .job-url {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 460px;
+    }
+
+    .status-pill {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .pill-pending    { background: rgba(107,114,128,.12); color: var(--muted); }
+    .pill-downloading,
+    .pill-processing  { background: rgba(59,130,246,.12); color: var(--accent); }
+    .pill-uploading  { background: rgba(245,158,11,.12);  color: var(--yellow); }
+    .pill-done       { background: rgba(34,197,94,.12);   color: var(--green); }
+    .pill-error      { background: rgba(239,68,68,.12);   color: var(--red); }
+
+    .job-progress { font-size: 12px; color: var(--muted); }
+    .job-progress a { color: var(--accent); text-decoration: none; font-size: 11px; }
+    .job-progress a:hover { text-decoration: underline; }
+
+    .progress-bar-wrap {
+      margin-top: 7px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width .4s ease;
+      background: var(--accent);
+    }
+    .status-uploading .progress-bar  { background: var(--yellow); animation: pulse-bar 1.2s ease-in-out infinite alternate; }
+    .status-done      .progress-bar  { background: var(--green); width: 100% !important; }
+    .status-error     .progress-bar  { background: var(--red); }
+
+    @keyframes pulse-bar { from { opacity: .5; } to { opacity: 1; } }
+
+    .empty-state {
+      padding: 30px;
+      text-align: center;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .info-box {
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    .info-box.blue { background: var(--accent-dim); border: 1px solid rgba(59,130,246,.2); color: #93c5fd; }
+    .info-box.red  { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); color: #fca5a5; }
+    .info-box.green { background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.2); color: #86efac; }
+
+    code {
+      font-family: var(--mono);
+      background: rgba(255,255,255,.05);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+
+    #auth-link { word-break: break-all; font-size: 11px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">dl</div>
+  <div>
+    <h1>VPS Downloader</h1>
+    <p>yt-dlp → Google Drive</p>
+  </div>
+  {% if authorized %}
+    <span class="badge ok">● Drive connected</span>
+  {% else %}
+    <span class="badge err">● Not connected</span>
+  {% endif %}
+</header>
+
+<!-- ── Setup card (shown until fully configured) ── -->
+{% if not authorized %}
+<div class="card" id="setup-card">
+  <div class="card-header">
+    <div class="dot {% if authorized %}active{% endif %}"></div>
+    Setup
+  </div>
+  <div class="card-body">
+    <div class="steps">
+
+      <!-- Step 1: credentials.json -->
+      <div class="step {% if has_creds %}done{% else %}active{% endif %}" id="step1">
+        <div class="step-num">{% if has_creds %}✓{% else %}1{% endif %}</div>
+        <div class="step-content">
+          <h3>Upload Google OAuth credentials</h3>
+          <p>
+            Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>
+            → Create an OAuth 2.0 Client ID (type: <strong>Desktop app</strong>) → Download JSON → upload it here.
+          </p>
+          {% if not has_creds %}
+          <input type="file" id="creds-file" accept=".json" />
+          <button onclick="uploadCredentials()">Upload credentials.json</button>
+          {% endif %}
+          <div id="creds-msg"></div>
+        </div>
+      </div>
+
+      <!-- Step 2: OAuth -->
+      <div class="step {% if authorized %}done{% elif has_creds %}active{% endif %}" id="step2">
+        <div class="step-num">{% if authorized %}✓{% else %}2{% endif %}</div>
+        <div class="step-content">
+          <h3>Connect your Google Drive</h3>
+          <p>Click the button to get an authorization URL, open it in your browser, approve access, and paste the code back here.</p>
+          {% if has_creds and not authorized %}
+          <button onclick="startAuth()" id="auth-btn">Get authorization URL</button>
+          <div id="auth-link-box" style="display:none; margin-top:12px;">
+            <div class="info-box blue" id="auth-link"></div>
+            <div class="input-group" style="margin-top:10px;">
+              <div class="input-label">Paste the code from Google here:</div>
+              <div class="row">
+                <input type="text" id="auth-code" placeholder="4/0AX4XfWh..." />
+                <button onclick="submitCode()">Authorize</button>
+              </div>
+            </div>
+          </div>
+          <div id="auth-msg"></div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Download card ── -->
+<div class="card" id="download-section" {% if authorized %}style="display:block"{% endif %}>
+  <div class="card-header">
+    <div class="dot active"></div>
+    New download
+  </div>
+  <div class="card-body">
+    <div class="input-group">
+      <div class="input-label">URL (YouTube, direct link, or any yt-dlp supported source)</div>
+      <input type="text" id="url-input" placeholder="https://www.youtube.com/watch?v=…" />
+    </div>
+    <div class="input-group">
+      <div class="input-label">Google Drive folder ID <span style="color:var(--muted)">(optional — leave blank for root)</span></div>
+      <input type="text" id="folder-input" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs" />
+    </div>
+    <div class="info-box blue" style="margin-bottom:10px;">
+      Folder ID is the last part of the Drive folder URL:<br/>
+      <code>drive.google.com/drive/folders/<strong>THIS_PART</strong></code>
+    </div>
+    <button onclick="startDownload()" id="dl-btn">↓ Send to Drive</button>
+    <div id="dl-msg"></div>
+  </div>
+</div>
+
+<!-- ── Jobs card ── -->
+<div class="card" {% if authorized %}style="display:block"{% else %}style="display:none"{% endif %} id="jobs-card">
+  <div class="card-header">
+    <div class="dot"></div>
+    Jobs
+    <button class="ghost" style="margin-left:auto; margin-top:0; padding:3px 10px; font-size:11px;" onclick="loadJobs()">Refresh</button>
+  </div>
+  <div class="card-body" style="padding:12px;">
+    <div class="job-list" id="job-list">
+      <div class="empty-state">No jobs yet.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function msg(id, text, type = 'blue') {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = `<div class="info-box ${type}" style="margin-top:8px;">${text}</div>`;
+  }
+
+  // ── Setup: upload credentials.json ───────────────────────────────────────
+
+  async function uploadCredentials() {
+    const file = document.getElementById('creds-file').files[0];
+    if (!file) { msg('creds-msg', 'Select a file first.', 'red'); return; }
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch('/setup/credentials', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.ok) {
+      msg('creds-msg', 'credentials.json uploaded! Proceed to step 2.', 'green');
+      document.getElementById('step1').className = 'step done';
+      document.getElementById('step1').querySelector('.step-num').textContent = '✓';
+      document.getElementById('step2').className = 'step active';
+    } else {
+      msg('creds-msg', d.error || 'Upload failed.', 'red');
+    }
+  }
+
+  // ── OAuth ────────────────────────────────────────────────────────────────
+
+  async function startAuth() {
+    document.getElementById('auth-btn').disabled = true;
+    const r = await fetch('/auth/start');
+    const d = await r.json();
+    if (d.auth_url) {
+      document.getElementById('auth-link-box').style.display = 'block';
+      document.getElementById('auth-link').innerHTML =
+        `Open this URL in your browser:<br/><br/><a href="${d.auth_url}" target="_blank">${d.auth_url}</a>`;
+    } else {
+      msg('auth-msg', d.error || 'Failed to start auth.', 'red');
+      document.getElementById('auth-btn').disabled = false;
+    }
+  }
+
+  async function submitCode() {
+    const code = document.getElementById('auth-code').value.trim();
+    if (!code) { msg('auth-msg', 'Paste the code from Google.', 'red'); return; }
+    const r = await fetch('/auth/code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      msg('auth-msg', 'Connected! Reloading…', 'green');
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      msg('auth-msg', d.error || 'Authorization failed.', 'red');
+    }
+  }
+
+  // ── Download ─────────────────────────────────────────────────────────────
+
+  const polling = {};   // job_id → intervalId
+
+  async function startDownload() {
+    const url = document.getElementById('url-input').value.trim();
+    const folder_id = document.getElementById('folder-input').value.trim();
+    if (!url) { msg('dl-msg', 'Enter a URL first.', 'red'); return; }
+
+    const btn = document.getElementById('dl-btn');
+    btn.disabled = true;
+    msg('dl-msg', 'Submitting…', 'blue');
+
+    const r = await fetch('/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, folder_id }),
+    });
+    const d = await r.json();
+    btn.disabled = false;
+
+    if (d.job_id) {
+      document.getElementById('url-input').value = '';
+      msg('dl-msg', `Job started: <code>${d.job_id.slice(0, 8)}…</code>`, 'green');
+      document.getElementById('jobs-card').style.display = 'block';
+      await loadJobs();
+      startPolling(d.job_id);
+    } else {
+      msg('dl-msg', d.error || 'Failed to start download.', 'red');
+    }
+  }
+
+  function startPolling(jobId) {
+    if (polling[jobId]) return;
+    polling[jobId] = setInterval(async () => {
+      const r = await fetch(`/status/${jobId}`);
+      const d = await r.json();
+      updateJobEl(d);
+      if (d.status === 'done' || d.status === 'error') {
+        clearInterval(polling[jobId]);
+        delete polling[jobId];
+      }
+    }, 1500);
+  }
+
+  // ── Job list ──────────────────────────────────────────────────────────────
+
+  async function loadJobs() {
+    const r = await fetch('/jobs');
+    const jobs = await r.json();
+    const list = document.getElementById('job-list');
+    if (!jobs.length) {
+      list.innerHTML = '<div class="empty-state">No jobs yet.</div>';
+      return;
+    }
+    // render all, keep existing elements for active jobs to avoid flicker
+    list.innerHTML = '';
+    for (const job of jobs) {
+      const el = buildJobEl(job);
+      list.appendChild(el);
+      if (['pending','downloading','processing','uploading'].includes(job.status)) {
+        startPolling(job.id);
+      }
+    }
+  }
+
+  function pctFromProgress(progress = '') {
+    const m = progress.match(/(\d+(?:\.\d+)?)%/);
+    return m ? parseFloat(m[1]) : null;
+  }
+
+  function buildJobEl(job) {
+    const div = document.createElement('div');
+    div.className = `job-item status-${job.status}`;
+    div.id = `job-${job.id}`;
+    div.innerHTML = jobHTML(job);
+    return div;
+  }
+
+  function updateJobEl(job) {
+    const el = document.getElementById(`job-${job.id}`);
+    if (!el) { loadJobs(); return; }
+    el.className = `job-item status-${job.status}`;
+    el.innerHTML = jobHTML(job);
+  }
+
+  function jobHTML(job) {
+    const pillClass = {
+      pending: 'pill-pending', downloading: 'pill-downloading',
+      processing: 'pill-processing', uploading: 'pill-uploading',
+      done: 'pill-done', error: 'pill-error',
+    }[job.status] || 'pill-pending';
+
+    const pct = pctFromProgress(job.progress);
+    const barWidth = job.status === 'done' ? 100
+      : job.status === 'uploading' ? 70
+      : job.status === 'processing' ? 55
+      : pct ?? (job.status === 'pending' ? 0 : 10);
+
+    const progressText = job.status === 'error'
+      ? `<span style="color:var(--red)">${job.error || 'Unknown error'}</span>`
+      : job.status === 'done'
+        ? (job.result ? `<a href="${job.result}" target="_blank">Open in Google Drive ↗</a>` : 'Done!')
+        : job.progress || '…';
+
+    return `
+      <div class="job-top">
+        <div class="job-url" title="${job.url}">${job.url}</div>
+        <span class="status-pill ${pillClass}">${job.status}</span>
+      </div>
+      <div class="job-progress">${progressText}</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" style="width:${barWidth}%"></div>
+      </div>
+    `;
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  const isAuthorized = {{ 'true' if authorized else 'false' }};
+  if (isAuthorized) loadJobs();
+</script>
+</body>
+</html>
